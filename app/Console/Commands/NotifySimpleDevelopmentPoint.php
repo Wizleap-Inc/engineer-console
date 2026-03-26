@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Member;
+use App\Utils\NotionDatabase;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
@@ -59,22 +60,17 @@ class NotifySimpleDevelopmentPoint extends Command
         $notionApiUrl = config('notion.api.url');
         $backlogDatabaseUrl = config('notion.api.backlogDatabaseUrl');
         $parentDatabaseUrl = config('notion.api.parentDatabaseUrl');
-        $notionToken = config('notion.api.token');
 
         $backlogEndpoint = "{$notionApiUrl}/databases/{$backlogDatabaseUrl}/query";
         $parentEndPoint = "{$notionApiUrl}/databases/{$parentDatabaseUrl}/query";
 
-        $headers = [
-            'Authorization' => "Bearer {$notionToken}",
-            'Notion-Version' => '2022-06-28',
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-        ];
+        $notionHttp = NotionDatabase::http();
 
         // Backlog数値管理から、当日を含めた次の火曜日のページIDを取得
         $nextTuesday = Carbon::now()->subHours(36)->next(Carbon::TUESDAY);
         $parentPayload = config('notion.payload.parent');
         $parentPayload['filter']['rich_text']['equals'] = $nextTuesday->format('Y/m/d');
-        $parentResponse = Http::withHeaders($headers)->post($parentEndPoint, $parentPayload);
+        $parentResponse = $notionHttp->post($parentEndPoint, $parentPayload);
         $parentPageId = $parentResponse['results'][0]['id'];
 
         // Backlogから、次の火曜日のページIDの子ページを取得（ページネーション対応）
@@ -91,7 +87,7 @@ class NotifySimpleDevelopmentPoint extends Command
                 $backlogPayload['start_cursor'] = $startCursor;
             }
 
-            $backlogResponse = Http::withHeaders($headers)->post($backlogEndpoint, $backlogPayload);
+            $backlogResponse = $notionHttp->post($backlogEndpoint, $backlogPayload);
 
             // 結果を追加
             $allResults = $allResults->merge($backlogResponse['results']);
