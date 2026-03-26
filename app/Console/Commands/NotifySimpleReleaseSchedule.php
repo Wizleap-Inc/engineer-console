@@ -7,6 +7,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use App\Utils\NotionDatabase;
 
 class NotifySimpleReleaseSchedule extends Command
@@ -49,14 +50,27 @@ class NotifySimpleReleaseSchedule extends Command
 
                 $releaseDate = CarbonImmutable::parse($releaseSchedule['properties']['リリース日']['date']['start']);
 
+                $member = $userId !== null
+                    ? $members->firstWhere('notion_id', $userId)
+                    : null;
+                if ($member === null) {
+                    Log::warning('NotifySimpleReleaseSchedule: メンバーに紐づかない責任者（name 参照で落ちる原因の特定用）', [
+                        'notion_user_id' => $userId,
+                        'page_url' => $releaseSchedule['url'] ?? null,
+                        'title' => $title ?? null,
+                        'short_title' => $shortTitle,
+                    ]);
+                }
+                $displayName = $member?->name ?? 'Unknown';
+
                 return [
                     'url' => $releaseSchedule['url'],
                     'releaseDate' => $releaseDate->startOfDay()->isPast()
                         ? $releaseDate->isoFormat('*M/DD (ddd)*')
                         : $releaseDate->isoFormat('M/DD (ddd)'),
                     'userName' => $releaseDate->startOfDay()->isPast()
-                        ? "*{$members->firstWhere('notion_id',$userId)->name}*"
-                        : $members->firstWhere('notion_id', $userId)->name ?? "Unknown",
+                        ? "*{$displayName}*"
+                        : $displayName,
                     'title' => $releaseDate->startOfDay()->isPast()
                         ? "*{$shortTitle}*"
                         : $shortTitle,
