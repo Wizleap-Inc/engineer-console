@@ -121,6 +121,12 @@ class NotifyRoadmap extends Command
                         ]
                     ],
                     [
+                        "property" => "Status",
+                        "select" => [
+                            "does_not_equal" => "保留"
+                        ]
+                    ],
+                    [
                         "property" => "Product",
                         "select" => [
                             "does_not_equal" => "セキュリティ"
